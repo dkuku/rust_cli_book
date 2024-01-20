@@ -65,24 +65,26 @@ pub fn run(config: Config) -> WcResult<()> {
     Ok(())
 }
 fn display(info: &FileInfo, config: &Config, filename: &str) -> WcResult<()> {
-    if config.lines {
-        print!("{:>8}", info.num_lines);
-    }
-    if config.words {
-        print!("{:>8}", info.num_words);
-    }
-    if config.bytes {
-        print!("{:>8}", info.num_bytes);
-    }
-    if config.chars {
-        print!("{:>8}", info.num_chars);
-    }
-    if filename != "-" {
-        println!(" {}", filename);
-    } else {
-        println!();
-    };
+    println!(
+        "{}{}{}{}{}",
+        format_field(info.num_lines, config.lines),
+        format_field(info.num_words, config.words),
+        format_field(info.num_bytes, config.bytes),
+        format_field(info.num_chars, config.chars),
+        if filename != "-" {
+            format!(" {}", filename)
+        } else {
+            "".to_string()
+        }
+    );
     Ok(())
+}
+fn format_field(value: usize, show: bool) -> String {
+    if show {
+        format!("{:>8}", value)
+    } else {
+        "".to_string()
+    }
 }
 fn count(mut file: impl BufRead) -> WcResult<FileInfo> {
     let mut num_lines = 0;
@@ -133,7 +135,7 @@ pub fn get_args() -> WcResult<Config> {
 
 #[cfg(test)]
 mod tests {
-    use super::{count, FileInfo};
+    use super::{count, format_field, FileInfo};
     use std::io::Cursor;
 
     #[test]
@@ -174,5 +176,12 @@ mod tests {
             num_bytes: 96,
         };
         assert_eq!(info.unwrap(), expected);
+    }
+
+    #[test]
+    fn test_format_field() {
+        assert_eq!(format_field(1, false), "");
+        assert_eq!(format_field(3, true), "       3");
+        assert_eq!(format_field(10, true), "      10");
     }
 }
