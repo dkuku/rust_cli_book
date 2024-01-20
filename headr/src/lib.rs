@@ -37,10 +37,8 @@ fn show_file_content(
     bytes: Option<usize>,
 ) -> HeadResult<()> {
     if let Some(num_bytes) = bytes {
-        let mut handle = file.take(num_bytes as u64);
-        let mut buffer = vec![0; num_bytes];
-        let bytes_read = handle.read(&mut buffer)?;
-        print!("{}", String::from_utf8_lossy(&buffer[..bytes_read]))
+        let bytes: Result<Vec<_>, _> = file.bytes().take(num_bytes).collect();
+        print!("{}", String::from_utf8_lossy(&bytes?));
     } else {
         let mut line = String::new();
         for _ in 0..lines {
