@@ -1,16 +1,27 @@
-use clap::{App, Arg};
+use clap::{arg, command, Parser};
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 
 type CatResult<T> = Result<T, Box<dyn Error>>;
 
-#[derive(Debug)]
+#[derive(Parser, Debug)]
+#[command(version = "0.1.0", author = "dkuku", about = "Rust cat")]
 pub struct Config {
+    /// Files to cat
+    #[arg(name = "FILES", default_value = "-")]
     files: Vec<String>,
+    /// Print line numbers
+    #[arg(short, long = "number")]
     number_lines: bool,
+    /// Print line numbers for nonblank lines
+    #[arg(short = 'b', long = "number-nonblank")]
     number_nonblank_lines: bool,
+    /// Show $ at the end of each line
+    #[arg(short = 'E', long = "show-ends")]
     show_ends: bool,
+    /// Squeeze multiple empty lines into a single line
+    #[arg(short = 's', long = "squeeze")]
     squeeze_blank: bool,
 }
 
@@ -51,53 +62,6 @@ fn open(filename: &str) -> CatResult<Box<dyn BufRead>> {
     }
 }
 pub fn get_args() -> CatResult<Config> {
-    let matches = App::new("catr")
-        .version("0.1.0")
-        .author("dkuku")
-        .about("Rust cat")
-        .arg(
-            Arg::with_name("filename")
-                .value_name("FILENAME")
-                .help("Input file(s)")
-                .multiple(true)
-                .default_value("-"),
-        )
-        .arg(
-            Arg::with_name("number_lines")
-                .short("n")
-                .long("number")
-                .conflicts_with("number_nonblank_lines")
-                .help("Add numbers to lines")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("show_ends")
-                .short("E")
-                .long("show-ends")
-                .help("Display $ at the end of the line")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("number_nonblank_lines")
-                .short("b")
-                .long("number-nonblank")
-                .help("Add numbers to non blank lines")
-                .takes_value(false),
-        )
-        .arg(
-            Arg::with_name("squeeze_blank")
-                .short("s")
-                .long("squeeze-blank")
-                .help("Suppress repeated empty output lines")
-                .takes_value(false),
-        )
-        .get_matches();
-
-    Ok(Config {
-        files: matches.values_of_lossy("filename").unwrap(),
-        number_lines: matches.is_present("number_lines"),
-        number_nonblank_lines: matches.is_present("number_nonblank_lines"),
-        show_ends: matches.is_present("show_ends"),
-        squeeze_blank: matches.is_present("squeeze_blank"),
-    })
+    let config = Config::parse();
+    Ok(config)
 }
