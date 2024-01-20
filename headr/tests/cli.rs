@@ -66,7 +66,7 @@ fn dies_bad_lines() -> TestResult {
 // --------------------------------------------------
 #[test]
 fn dies_bytes_and_lines() -> TestResult {
-    let msg = "The argument '--lines <LINES>' cannot be used with '--bytes <BYTES>'";
+    let msg = "the argument '--lines <LINES>' cannot be used with '--bytes <BYTES>'";
 
     Command::cargo_bin(PRG)?
         .args(["-n", "1", "-c", "2"])
@@ -108,11 +108,7 @@ fn run(args: &[&str], expected_file: &str) -> TestResult {
 }
 
 // --------------------------------------------------
-fn run_stdin(
-    args: &[&str],
-    input_file: &str,
-    expected_file: &str,
-) -> TestResult {
+fn run_stdin(args: &[&str], input_file: &str, expected_file: &str) -> TestResult {
     // Extra work here due to lossy UTF
     let mut file = File::open(expected_file)?;
     let mut buffer = Vec::new();

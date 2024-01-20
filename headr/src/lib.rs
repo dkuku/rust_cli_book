@@ -1,17 +1,36 @@
-use clap::{App, Arg};
+use clap::{arg, command, Parser};
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 
 type HeadResult<T> = Result<T, Box<dyn Error>>;
 
-#[derive(Debug)]
+#[derive(Parser, Debug)]
+#[command(version = "0.1.0", author = "dkuku", about = "Rust cat")]
 pub struct Config {
+    /// Files to cat
+    #[arg(name = "FILES", default_value = "-")]
     files: Vec<String>,
+    /// Number of lines to print
+    #[arg(short = 'n', long, default_value_t = 10, value_parser=parse_line_count)]
     lines: usize,
+    /// Number of bytes to print
+    #[arg(short = 'c', long, conflicts_with = "lines", value_parser=parse_byte_count)]
     bytes: Option<usize>,
 }
+fn parse_line_count(val: &str) -> Result<usize, String> {
+    match val.parse() {
+        Ok(n) if n > 0 => Ok(n),
+        _ => Err(format!("illegal line count -- {}", val)),
+    }
+}
 
+fn parse_byte_count(val: &str) -> Result<usize, String> {
+    match val.parse() {
+        Ok(n) if n > 0 => Ok(n),
+        _ => Err(format!("illegal byte count -- {}", val)),
+    }
+}
 pub fn run(config: Config) -> HeadResult<()> {
     let files_count = config.files.len();
     let multiple_files = files_count > 1;
@@ -59,74 +78,5 @@ fn open(filename: &str) -> HeadResult<Box<dyn BufRead>> {
     }
 }
 pub fn get_args() -> HeadResult<Config> {
-    let matches = App::new("headr")
-        .version("0.1.0")
-        .author("dkuku")
-        .about("Rust head")
-        .arg(
-            Arg::with_name("filename")
-                .value_name("FILENAME")
-                .help("Input file(s)")
-                .multiple(true)
-                .default_value("-"),
-        )
-        .arg(
-            Arg::with_name("lines")
-                .value_name("LINES")
-                .short("n")
-                .long("lines")
-                .help("Numbers of lines")
-                .default_value("10")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("bytes")
-                .value_name("BYTES")
-                .short("c")
-                .long("bytes")
-                .conflicts_with("lines")
-                .help("Numbers of bytes")
-                .takes_value(true),
-        )
-        .get_matches();
-
-    let lines = matches
-        .value_of("lines")
-        .map(parse_positive_int)
-        .transpose()
-        .map_err(|e| format!("illegal line count -- {}", e))?;
-    let bytes = matches
-        .value_of("bytes")
-        .map(parse_positive_int)
-        .transpose()
-        .map_err(|e| format!("illegal byte count -- {}", e))?;
-
-    Ok(Config {
-        files: matches.values_of_lossy("filename").unwrap(),
-        lines: lines.unwrap(),
-        bytes,
-    })
-}
-
-fn parse_positive_int(val: &str) -> HeadResult<usize> {
-    match val.parse() {
-        Ok(val) if val > 0 => Ok(val),
-        _ => Err(val.into()),
-    }
-}
-#[test]
-fn test_parse_valid_positive_int() {
-    let res = parse_positive_int("3");
-    assert!(res.is_ok());
-    assert_eq!(res.unwrap(), 3);
-}
-#[test]
-fn test_parse_invalid_positive_int() {
-    let res = parse_positive_int("-1");
-    assert!(res.is_err());
-    assert_eq!(res.unwrap_err().to_string(), "-1".to_string());
-
-    let res = parse_positive_int("foo");
-    assert!(res.is_err());
-    assert_eq!(res.unwrap_err().to_string(), "foo".to_string());
+    Ok(Config::parse())
 }
