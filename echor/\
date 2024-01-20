@@ -1,5 +1,5 @@
-use clap::{command, value_parser, Arg, ArgAction};
-use std::path::PathBuf;
+use clap::{command, Arg, ArgAction};
+use itertools::Itertools;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = command!()
@@ -9,7 +9,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .args([
             Arg::new("text")
                 .value_name("TEXT")
-                .value_parser(value_parser!(PathBuf))
                 .help("Input text")
                 .action(ArgAction::Append)
                 .required(true),
@@ -25,17 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         "\n"
     };
-    match matches.get_raw("text") {
+    match matches.try_get_many("text")? {
         Some(text) => {
-            println!(
-                "{}{}",
-                text.into_iter()
-                    .map(|v| v.to_str())
-                    .flatten()
-                    .collect::<Vec<_>>()
-                    .join(" "),
-                ending
-            );
+            println!("{}{}", text.join(" "), ending);
         }
         None => (),
     }
