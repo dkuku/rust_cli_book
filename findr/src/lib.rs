@@ -2,7 +2,7 @@ use clap::{arg, command, Parser};
 use regex::Regex;
 use std::error::Error;
 use strum::EnumString;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 type FindResult<T> = Result<T, Box<dyn Error>>;
 
@@ -37,24 +37,26 @@ pub fn run_borrow(config: &Config) -> FindResult<()> {
         names,
         paths,
     } = config;
+    let type_filter = |entry: &DirEntry| -> bool {
+        entry_types.is_empty()
+            || entry_types.iter().any(|entry_type| match entry_type {
+                EntryType::Link => entry.file_type().is_symlink(),
+                EntryType::Dir => entry.file_type().is_dir(),
+                EntryType::File => entry.file_type().is_file(),
+            })
+    };
+    let name_filter = |entry: &DirEntry| -> bool {
+        names.is_empty()
+            || names
+                .iter()
+                .any(|re| re.is_match(&entry.file_name().to_string_lossy()))
+    };
     for path in paths {
         WalkDir::new(path)
             .into_iter()
             .filter_map(|e| e.map_err(|err| eprintln!("{}", err)).ok())
-            .filter(|e| {
-                entry_types.is_empty()
-                    || entry_types.iter().any(|entry_type| match entry_type {
-                        EntryType::Link => e.file_type().is_symlink(),
-                        EntryType::Dir => e.file_type().is_dir(),
-                        EntryType::File => e.file_type().is_file(),
-                    })
-            })
-            .filter(|e| {
-                names.is_empty()
-                    || names
-                        .iter()
-                        .any(|re| re.is_match(&e.file_name().to_string_lossy()))
-            })
+            .filter(type_filter)
+            .filter(name_filter)
             .for_each(|e| println!("{}", e.path().display()));
     }
     Ok(())
