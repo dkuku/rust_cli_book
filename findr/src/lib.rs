@@ -40,13 +40,7 @@ pub fn run_borrow(config: &Config) -> FindResult<()> {
     for path in paths {
         WalkDir::new(path)
             .into_iter()
-            .filter_map(|e| match e {
-                Err(e) => {
-                    eprintln!("{}", e);
-                    None
-                }
-                Ok(val) => Some(val),
-            })
+            .filter_map(|e| e.map_err(|err| eprintln!("{}", err)).ok())
             .filter(|e| {
                 entry_types.is_empty()
                     || entry_types.iter().any(|entry_type| match entry_type {
@@ -57,10 +51,9 @@ pub fn run_borrow(config: &Config) -> FindResult<()> {
             })
             .filter(|e| {
                 names.is_empty()
-                    || names.iter().any(|re| match e.path().file_name() {
-                        Some(file_name) => re.is_match(&file_name.to_string_lossy()),
-                        None => false,
-                    })
+                    || names
+                        .iter()
+                        .any(|re| re.is_match(&e.file_name().to_string_lossy()))
             })
             .for_each(|e| println!("{}", e.path().display()));
     }
