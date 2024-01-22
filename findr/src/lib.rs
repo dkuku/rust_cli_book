@@ -58,9 +58,7 @@ pub fn run_borrow(config: &Config) -> FindResult<()> {
             .filter(|e| {
                 names.is_empty()
                     || names.iter().any(|re| match e.path().file_name() {
-                        Some(file_name) => {
-                            re.is_match(file_name.to_str().expect("filename unavailable"))
-                        }
+                        Some(file_name) => re.is_match(&file_name.to_string_lossy()),
                         None => false,
                     })
             })
