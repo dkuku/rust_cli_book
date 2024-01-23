@@ -51,14 +51,12 @@ pub fn run_borrow(config: &Config) -> FindResult<()> {
                 .iter()
                 .any(|re| re.is_match(&entry.file_name().to_string_lossy()))
     };
-    for path in paths {
-        WalkDir::new(path)
-            .into_iter()
-            .filter_map(|e| e.map_err(|err| eprintln!("{}", err)).ok())
-            .filter(type_filter)
-            .filter(name_filter)
-            .for_each(|e| println!("{}", e.path().display()));
-    }
+    paths
+        .iter()
+        .flat_map(|path| WalkDir::new(path).map_err(|err| eprintln!("{}", err)).ok())
+        .filter(type_filter)
+        .filter(name_filter)
+        .for_each(|e| println!("{}", e.path().display()));
     Ok(())
 }
 pub fn get_args() -> FindResult<Config> {
