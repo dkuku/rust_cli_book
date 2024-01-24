@@ -37,31 +37,39 @@ pub fn run_borrow(config: &Config) -> FindResult<()> {
         names,
         paths,
     } = config;
-    let type_filter = |entry: &DirEntry| -> bool {
-        entry_types.is_empty()
-            || entry_types.iter().any(|entry_type| match entry_type {
-                EntryType::Link => entry.file_type().is_symlink(),
-                EntryType::Dir => entry.file_type().is_dir(),
-                EntryType::File => entry.file_type().is_file(),
-            })
-    };
-    let name_filter = |entry: &DirEntry| -> bool {
-        names.is_empty()
-            || names
-                .iter()
-                .any(|re| re.is_match(&entry.file_name().to_string_lossy()))
-    };
     paths
         .iter()
-        .flat_map(|path| WalkDir::new(path).map_err(|err| eprintln!("{}", err)).ok())
-        .filter(type_filter)
-        .filter(name_filter)
+        .flat_map(|path| {
+            WalkDir::new(path)
+                .into_iter()
+                .filter_map(|e| e.map_err(|err| eprintln!("{}", err)).ok())
+        })
+        .filter(|e| type_filter(e, entry_types))
+        .filter(|e| name_filter(e, names))
         .for_each(|e| println!("{}", e.path().display()));
     Ok(())
 }
+
 pub fn get_args() -> FindResult<Config> {
     Ok(Config::parse())
 }
+
 fn parse_regex(name: &str) -> Result<Regex, String> {
     Regex::new(name).map_err(|_| format!("invalid --name \"{}\"", &name))
+}
+
+fn name_filter(entry: &DirEntry, names: &[Regex]) -> bool {
+    names.is_empty()
+        || names
+            .iter()
+            .any(|re| re.is_match(&entry.file_name().to_string_lossy()))
+}
+
+fn type_filter(entry: &DirEntry, entry_types: &[EntryType]) -> bool {
+    entry_types.is_empty()
+        || entry_types.iter().any(|entry_type| match entry_type {
+            EntryType::Link => entry.file_type().is_symlink(),
+            EntryType::Dir => entry.file_type().is_dir(),
+            EntryType::File => entry.file_type().is_file(),
+        })
 }

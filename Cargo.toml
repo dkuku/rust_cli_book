@@ -1,0 +1,12 @@
+[workspace]
+members = ["catr", "echor", "findr", "headr", "uniqr", "wcr"]
+[workspace.dependencies]
+assert_cmd = "2"
+clap = { version = "4", features = ["derive"] }
+predicates = "2"
+pretty_assertions = "1"
+rand = "0.8"
+regex = "1"
+strum = { version = "0.25", features = ["derive"] }
+tempfile = "3"
+walkdir = "2"

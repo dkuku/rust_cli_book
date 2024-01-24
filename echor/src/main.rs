@@ -1,43 +1,36 @@
-use clap::{command, value_parser, Arg, ArgAction};
-use std::path::PathBuf;
+use clap::{arg, command, Parser};
+// use std::path::PathBuf;
 
+#[derive(Parser, Debug)]
+#[command(version = "0.1.0", author = "dkuku", about = "Rust echo")]
+pub struct Config {
+    /// Files to cat
+    #[arg(name = "text", required = true)]
+    text: Vec<String>,
+    /// "Do not print newline"
+    #[arg(short = 'n', long)]
+    omit_newline: bool,
+}
+///
+///    /// Input text
+///    #[arg(short = 'n', long, default_value_t = 10, value_parser=parse_line_count)]
+///    lines: usize,
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let matches = command!()
-        .version("0.1.0")
-        .author("dkuku")
-        .about("Rust echo")
-        .args([
-            Arg::new("text")
-                .value_name("TEXT")
-                .value_parser(value_parser!(PathBuf))
-                .help("Input text")
-                .action(ArgAction::Append)
-                .required(true),
-            Arg::new("omit_newline")
-                .short('n')
-                .action(ArgAction::SetTrue)
-                .help("Do not print newline"),
-        ])
-        .get_matches();
-
-    let ending = if matches.get_flag("omit_newline") {
-        ""
+    let config = Config::parse();
+    let ending = if config.omit_newline { "" } else { "\n" };
+    if config.text.is_empty() {
+        Ok(())
     } else {
-        "\n"
-    };
-    match matches.get_raw("text") {
-        Some(text) => {
-            println!(
-                "{}{}",
-                text.into_iter()
-                    .map(|v| v.to_str())
-                    .flatten()
-                    .collect::<Vec<_>>()
-                    .join(" "),
-                ending
-            );
-        }
-        None => (),
+        println!(
+            "{}{}",
+            config
+                .text
+                .into_iter()
+                .map(|v| v)
+                .collect::<Vec<_>>()
+                .join(" "),
+            ending
+        );
+        Ok(())
     }
-    Ok(())
 }
