@@ -1,8 +1,12 @@
 [workspace]
-members = ["catr", "echor", "findr", "headr", "uniqr", "wcr"]
+members = ["catr", "cutr", "echor", "findr", "headr", "uniqr", "wcr"]
+resolver = "2"
+
 [workspace.dependencies]
 assert_cmd = "2"
 clap = { version = "4", features = ["derive"] }
+csv = "1"
+nom = "7"
 predicates = "2"
 pretty_assertions = "1"
 rand = "0.8"
