@@ -66,18 +66,21 @@ fn parse_position(input: &str) -> Result<PositionList, String> {
         };
     let result = inputs
         .iter()
-        .map(|r| match r.split("-").collect::<Vec<_>>()[..] {
-            [result] => {
-                let pos = result.parse().unwrap();
-                (pos - 1)..pos
-            }
-            ["", to] => 0..to.parse().unwrap(),
-            [from, ""] => from.parse().unwrap()..255,
-            [from, to] => from.parse().unwrap()..to.parse().unwrap(),
-            _ => unimplemented!(),
-        })
+        .map(|parsed| parsed_to_range(parsed))
         .collect::<Vec<Range<usize>>>();
     Ok(result)
+}
+fn parsed_to_range(parsed: &str) -> Range<usize> {
+    match parsed.split('-').collect::<Vec<_>>()[..] {
+        [result] => {
+            let pos = result.parse().unwrap();
+            (pos - 1)..pos
+        }
+        ["", to] => 0..to.parse().unwrap(),
+        [from, ""] => from.parse().unwrap()..255,
+        [from, to] => from.parse().unwrap()..to.parse().unwrap(),
+        _ => unimplemented!(),
+    }
 }
 fn range_input(input: &str) -> IResult<&str, &str> {
     alt((
