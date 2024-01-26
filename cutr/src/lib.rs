@@ -10,6 +10,7 @@ use nom::{
     IResult,
 };
 use std::error::Error;
+use std::fmt::Display;
 use std::ops::Range;
 
 type PositionList = Vec<Range<usize>>;
@@ -53,20 +54,13 @@ fn parse_delimiter(delim: &str) -> Result<u8, String> {
         .ok_or(String::from("Invalid delimiter"))
 }
 fn parse_position(input: &str) -> Result<PositionList, String> {
-    let inputs = match separated_list0(tag(","), range_input)(input)
-        .map_err(|_| String::from("Illegal value"))
-    {
-        Ok(("", inputs)) => inputs,
-        Ok((result, inputs)) => {
-            eprintln!("{:?} {:?}", result, inputs);
-            unimplemented!()
-        }
-        Err(e) => {
-            eprintln!("{:?}", e);
-            unimplemented!()
-        }
-    };
-    let result: Result<Vec<Range<usize>>, String> = inputs
+    let inputs =
+        match separated_list0(tag(","), range_input)(input).map_err(|_| format_val_err(input)) {
+            Ok(("", inputs)) => Ok(inputs),
+            Ok((_result, _inputs)) => Err(format_val_err(input)),
+            Err(_e) => Err(format_val_err(input)),
+        };
+    let result: Result<Vec<Range<usize>>, String> = inputs?
         .iter()
         .map(|parsed| parsed_to_range(parsed))
         .collect();
@@ -75,14 +69,24 @@ fn parse_position(input: &str) -> Result<PositionList, String> {
 fn parsed_to_range(parsed: &str) -> Result<Range<usize>, String> {
     match parsed.split('-').collect::<Vec<_>>()[..] {
         [result] => {
-            let pos = result.parse().unwrap();
+            let pos = parse(result)?;
             Ok((pos - 1)..pos)
         }
-        ["", to] => Ok(0..to.parse().unwrap()),
-        [from, ""] => Ok((from.parse::<usize>().unwrap() - 1)..255),
-        [from, to] => Ok((from.parse::<usize>().unwrap() - 1)..to.parse().unwrap()),
-        _ => Err(String::from("Invalid value")),
+        ["", to] => Ok(0..parse(to)?),
+        [from, ""] => Ok((parse(from)? - 1)..255),
+        [from, to] => Ok((parse(from)? - 1)..parse(to)?),
+        _ => Err(format_val_err(parsed)),
     }
+}
+fn parse(input: &str) -> Result<usize, String> {
+    match input.parse() {
+        Err(_) => Err(format_val_err(input)),
+        Ok(v) if v < 1 => Err(format_val_err(v)),
+        Ok(v) => Ok(v),
+    }
+}
+fn format_val_err(val: impl Display) -> String {
+    format!("illegal list value: \"{}\"", val)
 }
 fn range_input(input: &str) -> IResult<&str, &str> {
     alt((
