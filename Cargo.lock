@@ -195,6 +195,7 @@ dependencies = [
  "csv",
  "nom",
  "predicates 2.1.5",
+ "pretty_assertions",
  "rand",
  "regex",
 ]
