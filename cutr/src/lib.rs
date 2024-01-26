@@ -54,15 +54,16 @@ fn parse_delimiter(delim: &str) -> Result<u8, String> {
         .ok_or(String::from("Invalid delimiter"))
 }
 fn parse_position(input: &str) -> Result<PositionList, String> {
-    let inputs =
-        match separated_list0(tag(","), range_input)(input).map_err(|_| format_val_err(input)) {
-            Ok(("", inputs)) => Ok(inputs),
-            Ok((_result, _inputs)) => Err(format_val_err(input)),
-            Err(_e) => Err(format_val_err(input)),
-        };
+    let inputs = match separated_list0(tag(","), range_input)(input).map_err(|e| format_val_err(e))
+    {
+        Ok(("", inputs)) => Ok(inputs),
+        Ok((result, _inputs)) => Err(format_val_err(result)),
+        Err(e) => Err(e),
+    };
     let result: Result<Vec<Range<usize>>, String> = inputs?
         .iter()
         .map(|parsed| parsed_to_range(parsed))
+        .map(validate_range)
         .collect();
     result
 }
@@ -84,6 +85,24 @@ fn parse(input: &str) -> Result<usize, String> {
         Ok(v) if v < 1 => Err(format_val_err(v)),
         Ok(v) => Ok(v),
     }
+}
+fn validate_range(range: Result<Range<usize>, String>) -> Result<Range<usize>, String> {
+    match range {
+        Ok(Range {
+            start: from,
+            end: to,
+        }) if from >= to => Err(format_range_err(from, to)),
+        Ok(_) => range,
+        Err(e) => Err(e),
+    }
+}
+
+fn format_range_err(from: usize, to: usize) -> String {
+    format!(
+        "First number in range ({}) must be lower than second number ({})",
+        from + 1,
+        to
+    )
 }
 fn format_val_err(val: impl Display) -> String {
     format!("illegal list value: \"{}\"", val)
@@ -146,7 +165,7 @@ mod unit_tests {
     fn test_parse_position_1plus2() {
         let res = parse_position("1-+2");
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err().to_string(), "illegal list value: \"1-+2\"",);
+        assert_eq!(res.unwrap_err().to_string(), "illegal list value: \"+2\"",);
     }
     #[test]
     fn test_parse_position_non_number() {
@@ -159,13 +178,13 @@ mod unit_tests {
     fn test_parse_position_number_non_number() {
         let res = parse_position("1,a");
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err().to_string(), "illegal list value: \"a\"",);
+        assert_eq!(res.unwrap_err().to_string(), "illegal list value: \",a\"",);
     }
     #[test]
     fn test_parse_position_number_non_number_range() {
         let res = parse_position("1-a");
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err().to_string(), "illegal list value: \"1-a\"",);
+        assert_eq!(res.unwrap_err().to_string(), "illegal list value: \"a\"",);
     }
     #[test]
     fn test_parse_position_non_number_number_range() {
@@ -198,16 +217,6 @@ mod unit_tests {
     fn test_parse_position_invalid_range_char() {
         let res = parse_position("1-1-a");
         assert!(res.is_err());
-    }
-    #[test]
-    fn test_parse_position_invalid_range_same() {
-        // First number must be less than second
-        let res = parse_position("1-1");
-        assert!(res.is_err());
-        assert_eq!(
-            res.unwrap_err().to_string(),
-            "First number in range (1) must be lower than second number (1)"
-        );
     }
     #[test]
     fn test_parse_position_invalid_range_reverse() {
@@ -248,6 +257,12 @@ mod unit_tests {
         let res = parse_position("1-3");
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![0..3]);
+    }
+    #[test]
+    fn test_parse_position_ok_range_same() {
+        let res = parse_position("1-1");
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![0..1]);
     }
     #[test]
     fn test_parse_position_ok_range_with_0() {
