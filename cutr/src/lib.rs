@@ -1,4 +1,5 @@
 use clap::{command, ArgGroup, Parser};
+use core::num::NonZeroUsize;
 use core::result::Result;
 use nom::{
     branch::alt,
@@ -92,10 +93,9 @@ fn parsed_to_range(parsed: &str) -> Result<Range<usize>, String> {
     }
 }
 fn parse(input: &str) -> Result<usize, String> {
-    match input.parse() {
+    match input.parse::<NonZeroUsize>() {
         Err(_) => Err(format_val_err(input)),
-        Ok(v) if v < 1 => Err(format_val_err(v)),
-        Ok(v) => Ok(v),
+        Ok(v) => Ok(v.into()),
     }
 }
 fn format_range_err(from: usize, to: usize) -> String {
