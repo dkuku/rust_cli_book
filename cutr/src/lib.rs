@@ -31,14 +31,14 @@ pub struct Config {
     #[arg(short, long = "delim", default_value = "\t", value_parser = parse_delimiter)]
     delimiter: u8,
     /// Selected characters
-    #[arg(short, long, default_value = "", allow_hyphen_values(true), value_parser = parse_position)]
-    chars: PositionList,
+    #[arg(short, long, default_value = None, allow_hyphen_values(true), value_parser = parse_position)]
+    chars: Option<PositionList>,
     /// Selected bytes
-    #[arg(short, long, default_value = "", allow_hyphen_values(true),  value_parser = parse_position)]
-    bytes: PositionList,
+    #[arg(short, long, default_value = None, allow_hyphen_values(true),  value_parser = parse_position)]
+    bytes: Option<PositionList>,
     /// Selected fields
-    #[arg(short, long, default_value = "", allow_hyphen_values(true), value_parser = parse_position)]
-    field: PositionList,
+    #[arg(short, long, default_value = None, allow_hyphen_values(true), value_parser = parse_position)]
+    field: Option<PositionList>,
 }
 pub fn run(config: Config) -> CutResult<()> {
     dbg!(config);
@@ -74,7 +74,7 @@ fn parsed_to_range(parsed: &str) -> Result<Range<usize>, String> {
             Ok((pos - 1)..pos)
         }
         ["", to] => Ok(0..parse(to)?),
-        [from, ""] => Ok((parse(from)? - 1)..255),
+        [from, ""] => Ok((parse(from)? - 1)..usize::MAX),
         [from, to] => Ok((parse(from)? - 1)..parse(to)?),
         _ => Err(format_val_err(parsed)),
     }
@@ -131,16 +131,9 @@ mod unit_tests {
     //    use csv::StringRecord;
 
     #[test]
-    fn test_parse_position() {
-        // The empty string is an error
-        assert!(parse_position("").is_err());
-    }
-    #[test]
     fn test_parse_position0() {
-        // Zero is an error
-        let res = parse_position("0");
-        assert!(res.is_err());
-        assert_eq!(res.unwrap_err().to_string(), "illegal list value: \"0\"",);
+        // The empty string is an error
+        assert!(parse_position("0").is_err());
     }
     #[test]
     fn test_parse_position01() {
@@ -226,6 +219,13 @@ mod unit_tests {
             res.unwrap_err().to_string(),
             "First number in range (2) must be lower than second number (1)"
         );
+    }
+    #[test]
+    fn test_parse_position() {
+        // Zero is an error
+        let res = parse_position("");
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
     }
     #[test]
     fn test_parse_position_ok_single() {
