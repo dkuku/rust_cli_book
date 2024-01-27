@@ -12,6 +12,9 @@ use nom::{
 };
 use std::error::Error;
 use std::fmt::Display;
+use std::fs::File;
+use std::io;
+use std::io::{BufRead, BufReader};
 use std::ops::Range;
 
 type PositionList = Vec<Range<usize>>;
@@ -23,7 +26,7 @@ pub enum Extract {
     Chars(PositionList),
 }
 #[derive(Parser, Debug)]
-#[command(version = "0.1.0", author = "dkuku", about = "Rust uniq")]
+#[command(version, author, about = "Rust uniq")]
 #[clap(group(ArgGroup::new("filters")
                 .required(true)
                 .args(&["chars", "bytes", "fields"])
@@ -46,11 +49,33 @@ pub struct Config {
     fields: Option<PositionList>,
 }
 pub fn run(config: Config) -> CutResult<()> {
-    dbg!(config);
+    do_run(&config)
+}
+pub fn do_run(config: &Config) -> CutResult<()> {
+    let _ = config
+        .files
+        .iter()
+        .map(|file| {
+            let _ = open(file);
+            match config {
+                config if config.bytes.is_some() => println!("bytes: "),
+                config if config.chars.is_some() => println!("chars: "),
+                config if config.fields.is_some() => println!("fields: "),
+                _ => unimplemented!(),
+            }
+        })
+        .collect::<Vec<_>>();
+
     Ok(())
 }
 pub fn get_args() -> CutResult<Config> {
     Ok(Config::parse())
+}
+fn open(filename: &str) -> CutResult<Box<dyn BufRead>> {
+    match filename {
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+        _ => Ok(Box::new(BufReader::new(File::open(filename)?))),
+    }
 }
 fn parse_delimiter(delim: &str) -> Result<u8, String> {
     let mut delim_iter = delim.bytes();
