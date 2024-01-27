@@ -63,19 +63,26 @@ fn parse_position(input: &str) -> Result<PositionList, String> {
     let result: Result<Vec<Range<usize>>, String> = inputs?
         .iter()
         .map(|parsed| parsed_to_range(parsed))
-        .map(validate_range)
         .collect();
     result
 }
 fn parsed_to_range(parsed: &str) -> Result<Range<usize>, String> {
     match parsed.split('-').collect::<Vec<_>>()[..] {
+        ["", to] => Ok(0..parse(to)?),
+        [from, ""] => Ok((parse(from)? - 1)..usize::MAX),
         [result] => {
             let pos = parse(result)?;
             Ok((pos - 1)..pos)
         }
-        ["", to] => Ok(0..parse(to)?),
-        [from, ""] => Ok((parse(from)? - 1)..usize::MAX),
-        [from, to] => Ok((parse(from)? - 1)..parse(to)?),
+        [from, to] => {
+            let from = parse(from)?;
+            let to = parse(to)?;
+            if from > to {
+                return Err(format_range_err(from, to));
+            }
+            let range = (from - 1)..to;
+            Ok(range)
+        }
         _ => Err(format_val_err(parsed)),
     }
 }
@@ -86,22 +93,10 @@ fn parse(input: &str) -> Result<usize, String> {
         Ok(v) => Ok(v),
     }
 }
-fn validate_range(range: Result<Range<usize>, String>) -> Result<Range<usize>, String> {
-    match range {
-        Ok(Range {
-            start: from,
-            end: to,
-        }) if from >= to => Err(format_range_err(from, to)),
-        Ok(_) => range,
-        Err(e) => Err(e),
-    }
-}
-
 fn format_range_err(from: usize, to: usize) -> String {
     format!(
         "First number in range ({}) must be lower than second number ({})",
-        from + 1,
-        to
+        from, to
     )
 }
 fn format_val_err(val: impl Display) -> String {
