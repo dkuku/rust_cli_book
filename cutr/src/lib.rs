@@ -1,4 +1,4 @@
-use clap::{command, Parser};
+use clap::{command, ArgGroup, Parser};
 use core::result::Result;
 use nom::{
     branch::alt,
@@ -23,6 +23,10 @@ pub enum Extract {
 }
 #[derive(Parser, Debug)]
 #[command(version = "0.1.0", author = "dkuku", about = "Rust uniq")]
+#[clap(group(ArgGroup::new("filters")
+                .required(true)
+                .args(&["chars", "bytes", "fields"])
+        ))]
 pub struct Config {
     /// Input file
     #[arg(name = "FILES", default_value = "")]
@@ -38,7 +42,7 @@ pub struct Config {
     bytes: Option<PositionList>,
     /// Selected fields
     #[arg(short, long, default_value = None, allow_hyphen_values(true), value_parser = parse_position)]
-    field: Option<PositionList>,
+    fields: Option<PositionList>,
 }
 pub fn run(config: Config) -> CutResult<()> {
     dbg!(config);
@@ -48,14 +52,15 @@ pub fn get_args() -> CutResult<Config> {
     Ok(Config::parse())
 }
 fn parse_delimiter(delim: &str) -> Result<u8, String> {
-    delim
-        .bytes()
-        .next()
-        .ok_or(String::from("Invalid delimiter"))
+    let mut delim_iter = delim.bytes();
+    let result = delim_iter.next().ok_or(format_delim_err(delim));
+    match delim_iter.next() {
+        None => result,
+        Some(_) => Err(format_delim_err(delim)),
+    }
 }
 fn parse_position(input: &str) -> Result<PositionList, String> {
-    let inputs = match separated_list0(tag(","), range_input)(input).map_err(|e| format_val_err(e))
-    {
+    let inputs = match separated_list0(tag(","), range_input)(input).map_err(format_val_err) {
         Ok(("", inputs)) => Ok(inputs),
         Ok((result, _inputs)) => Err(format_val_err(result)),
         Err(e) => Err(e),
@@ -98,6 +103,9 @@ fn format_range_err(from: usize, to: usize) -> String {
         "First number in range ({}) must be lower than second number ({})",
         from, to
     )
+}
+fn format_delim_err(val: impl Display) -> String {
+    format!("Invalid delimiter: \"{}\"", val)
 }
 fn format_val_err(val: impl Display) -> String {
     format!("illegal list value: \"{}\"", val)

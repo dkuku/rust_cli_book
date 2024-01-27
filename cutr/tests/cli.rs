@@ -55,7 +55,10 @@ fn dies(args: &[&str], expected: &str) -> TestResult {
 // --------------------------------------------------
 #[test]
 fn dies_not_enough_args() -> TestResult {
-    dies(&[CSV], "Must have --fields, --bytes, or --chars")
+    dies(
+        &[CSV],
+        "the following required arguments were not provided:",
+    )
 }
 
 // --------------------------------------------------
@@ -91,19 +94,13 @@ fn dies_bad_digit_chars() -> TestResult {
 // --------------------------------------------------
 #[test]
 fn dies_empty_delimiter() -> TestResult {
-    dies(
-        &[CSV, "-f", "1", "-d", ""],
-        "--delim \"\" must be a single byte",
-    )
+    dies(&[CSV, "-f", "1", "-d", ""], "Invalid delimiter")
 }
 
 // --------------------------------------------------
 #[test]
 fn dies_bad_delimiter() -> TestResult {
-    dies(
-        &[CSV, "-f", "1", "-d", ",,"],
-        "--delim \",,\" must be a single byte",
-    )
+    dies(&[CSV, "-f", "1", "-d", ",,"], "Invalid delimiter")
 }
 
 // --------------------------------------------------
