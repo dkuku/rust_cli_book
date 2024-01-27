@@ -25,8 +25,8 @@ pub enum Extract {
 #[command(version = "0.1.0", author = "dkuku", about = "Rust uniq")]
 pub struct Config {
     /// Input file
-    #[arg(name = "FILE", default_value = "")]
-    file: String,
+    #[arg(name = "FILES", default_value = "")]
+    files: Vec<String>,
     /// Field delimiter
     #[arg(short, long = "delim", default_value = "\t", value_parser = parse_delimiter)]
     delimiter: u8,
