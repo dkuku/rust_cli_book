@@ -1,6 +1,7 @@
 use clap::{command, ArgGroup, Parser};
 use core::num::NonZeroUsize;
 use core::result::Result;
+use csv::{ReaderBuilder, StringRecord, WriterBuilder};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -28,9 +29,9 @@ pub enum Extract {
 #[derive(Parser, Debug)]
 #[command(version, author, about = "Rust uniq")]
 #[clap(group(ArgGroup::new("filters")
-                .required(true)
-                .args(&["chars", "bytes", "fields"])
-        ))]
+    .required(true)
+    .args(&["chars", "bytes", "fields"])
+))]
 pub struct Config {
     /// Input file
     #[arg(name = "FILES", default_value = "")]
@@ -49,24 +50,78 @@ pub struct Config {
     fields: Option<PositionList>,
 }
 pub fn run(config: Config) -> CutResult<()> {
-    do_run(&config)
-}
-pub fn do_run(config: &Config) -> CutResult<()> {
-    let _ = config
-        .files
-        .iter()
-        .map(|file| {
-            let _ = open(file);
-            match config {
-                config if config.bytes.is_some() => println!("bytes: "),
-                config if config.chars.is_some() => println!("chars: "),
-                config if config.fields.is_some() => println!("fields: "),
-                _ => unimplemented!(),
+    let Config {
+        files,
+        delimiter,
+        chars,
+        bytes,
+        fields,
+    } = config;
+    for filename in files {
+        match open(&filename) {
+            Err(err) => eprintln!("{}: {}", filename, err),
+            Ok(file) => {
+                if let Some(byte_pos) = &bytes {
+                    for line in file.lines() {
+                        println!("{}", extract_bytes(&line?, byte_pos));
+                    }
+                } else if let Some(char_pos) = &chars {
+                    for line in file.lines() {
+                        println!("{}", extract_chars(&line?, char_pos));
+                    }
+                } else if let Some(field_pos) = &fields {
+                    let mut reader = ReaderBuilder::new()
+                        .delimiter(delimiter)
+                        .has_headers(false)
+                        .from_reader(file);
+                    let mut wtr = WriterBuilder::new()
+                        .delimiter(delimiter)
+                        .from_writer(io::stdout());
+                    for record in reader.records() {
+                        let record = record?;
+                        wtr.write_record(extract_fields(&record, field_pos))?;
+                    }
+                } else {
+                    unimplemented!()
+                }
             }
-        })
-        .collect::<Vec<_>>();
+        }
+    }
 
     Ok(())
+}
+fn extract_bytes(line: &str, chars_pos: &[Range<usize>]) -> String {
+    let mut buffer = Vec::new();
+    for cp in chars_pos.iter() {
+        line.bytes().enumerate().for_each(|(idx, c)| {
+            if cp.contains(&idx) {
+                buffer.push(c)
+            }
+        });
+    }
+    String::from_utf8_lossy(&buffer).to_string()
+}
+fn extract_chars(line: &str, chars_pos: &[Range<usize>]) -> String {
+    let mut buffer = String::new();
+    for cp in chars_pos.iter() {
+        line.chars().enumerate().for_each(|(idx, c)| {
+            if cp.contains(&idx) {
+                buffer.push(c)
+            }
+        });
+    }
+    buffer
+}
+fn extract_fields<'a>(line: &'a StringRecord, chars_pos: &[Range<usize>]) -> Vec<&'a str> {
+    let mut buffer = Vec::new();
+    for cp in chars_pos.iter() {
+        line.into_iter().enumerate().for_each(|(idx, c)| {
+            if cp.contains(&idx) {
+                buffer.push(c)
+            }
+        });
+    }
+    buffer
 }
 pub fn get_args() -> CutResult<Config> {
     Ok(Config::parse())
@@ -153,10 +208,9 @@ fn decimal(input: &str) -> IResult<&str, &str> {
 }
 #[cfg(test)]
 mod unit_tests {
-    //use super::{extract_bytes, extract_chars, extract_fields, parse_pos};
-    use super::parse_position;
+    use super::{extract_bytes, extract_chars, extract_fields, parse_position};
+    use csv::StringRecord;
     use pretty_assertions::assert_eq;
-    //    use csv::StringRecord;
 
     #[test]
     fn test_parse_position0() {
@@ -311,39 +365,32 @@ mod unit_tests {
         assert_eq!(res.unwrap(), vec![14..15, 18..20]);
     }
 
-    //    #[test]
-    //    fn test_extract_fields() {
-    //        let rec = StringRecord::from(vec!["Captain", "Sham", "12345"]);
-    //        assert_eq!(extract_fields(&rec, &[0..1]), &["Captain"]);
-    //        assert_eq!(extract_fields(&rec, &[1..2]), &["Sham"]);
-    //        assert_eq!(
-    //            extract_fields(&rec, &[0..1, 2..3]),
-    //            &["Captain", "12345"]
-    //        );
-    //        assert_eq!(extract_fields(&rec, &[0..1, 3..4]), &["Captain"]);
-    //        assert_eq!(extract_fields(&rec, &[1..2, 0..1]), &["Sham", "Captain"]);
-    //    }
-    //
-    //    #[test]
-    //    fn test_extract_chars() {
-    //        assert_eq!(extract_chars("", &[0..1]), "".to_string());
-    //        assert_eq!(extract_chars("ábc", &[0..1]), "á".to_string());
-    //        assert_eq!(extract_chars("ábc", &[0..1, 2..3]), "ác".to_string());
-    //        assert_eq!(extract_chars("ábc", &[0..3]), "ábc".to_string());
-    //        assert_eq!(extract_chars("ábc", &[2..3, 1..2]), "cb".to_string());
-    //        assert_eq!(
-    //            extract_chars("ábc", &[0..1, 1..2, 4..5]),
-    //            "áb".to_string()
-    //        );
-    //    }
-    //
-    //    #[test]
-    //    fn test_extract_bytes() {
-    //        assert_eq!(extract_bytes("ábc", &[0..1]), "�".to_string());
-    //        assert_eq!(extract_bytes("ábc", &[0..2]), "á".to_string());
-    //        assert_eq!(extract_bytes("ábc", &[0..3]), "áb".to_string());
-    //        assert_eq!(extract_bytes("ábc", &[0..4]), "ábc".to_string());
-    //        assert_eq!(extract_bytes("ábc", &[3..4, 2..3]), "cb".to_string());
-    //        assert_eq!(extract_bytes("ábc", &[0..2, 5..6]), "á".to_string());
-    //    }
+    #[test]
+    fn test_extract_fields() {
+        let rec = StringRecord::from(vec!["Captain", "Sham", "12345"]);
+        assert_eq!(extract_fields(&rec, &[0..1]), &["Captain"]);
+        assert_eq!(extract_fields(&rec, &[1..2]), &["Sham"]);
+        assert_eq!(extract_fields(&rec, &[0..1, 2..3]), &["Captain", "12345"]);
+        assert_eq!(extract_fields(&rec, &[0..1, 3..4]), &["Captain"]);
+        assert_eq!(extract_fields(&rec, &[1..2, 0..1]), &["Sham", "Captain"]);
+    }
+
+    #[test]
+    fn test_extract_chars() {
+        assert_eq!(extract_chars("", &[0..1]), "".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1]), "á".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1, 2..3]), "ác".to_string());
+        assert_eq!(extract_chars("ábc", &[0..3]), "ábc".to_string());
+        assert_eq!(extract_chars("ábc", &[2..3, 1..2]), "cb".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1, 1..2, 4..5]), "áb".to_string());
+    }
+    #[test]
+    fn test_extract_bytes() {
+        assert_eq!(extract_bytes("ábc", &[0..1]), "�".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..2]), "á".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..3]), "áb".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..4]), "ábc".to_string());
+        assert_eq!(extract_bytes("ábc", &[3..4, 2..3]), "cb".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..2, 5..6]), "á".to_string());
+    }
 }
