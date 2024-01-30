@@ -1,5 +1,5 @@
 [workspace]
-members = ["catr", "cutr", "echor", "findr", "headr", "uniqr", "wcr"]
+members = ["catr", "cutr", "echor", "findr", "grepr", "headr", "uniqr", "wcr"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -12,5 +12,6 @@ pretty_assertions = "1"
 rand = "0.8"
 regex = "1"
 strum = { version = "0.25", features = ["derive"] }
+sys-info = "0.9"
 tempfile = "3"
 walkdir = "2"
