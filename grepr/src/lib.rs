@@ -39,28 +39,33 @@ fn parse_regex(pattern: &str) -> Result<Regex, RegexError> {
     Regex::new(pattern)
 }
 fn find_files(paths: &[String], recursive: bool) -> Vec<GrepResult<String>> {
-    paths
-        .iter()
-        .map(|path| {
-            let path_struct = Path::new(path);
-            if !path_struct.exists() {
-                return Err("Path does not exist".into());
-            };
-            if recursive {
-                if path_struct.is_dir() {
-                    Ok(path.clone())
-                } else {
-                    Err(format!("{} directory", path).into())
-                }
+    let mut result = Vec::new();
+    paths.iter().for_each(|path| {
+        let path_struct = Path::new(path);
+        if !path_struct.exists() {
+            result.push(Err(format!("{path} Path does not exist").into()));
+            return;
+        };
+        if recursive {
+            if path_struct.is_dir() {
+                WalkDir::new(path).into_iter().for_each(|p| match p {
+                    Err(_e) => result.push(Err("walkdir error".into())),
+                    Ok(p) => {
+                        if Path::new(p.path()).is_file() {
+                            result.push(Ok(p.path().display().to_string()))
+                        }
+                    }
+                });
             } else {
-                if path_struct.is_file() {
-                    Ok(path.clone())
-                } else {
-                    Err(format!("{} is a directory", path).into())
-                }
+                result.push(Err(format!("{path} is a directory").into()))
             }
-        })
-        .collect()
+        } else if path_struct.is_file() {
+            result.push(Ok(path.clone()))
+        } else {
+            result.push(Err(format!("{path} is a directory").into()))
+        }
+    });
+    result
 }
 #[cfg(test)]
 mod tests {
@@ -90,7 +95,7 @@ mod tests {
         let res = find_files(&["./tests/inputs".to_string()], true);
         let mut files: Vec<String> = res
             .iter()
-            .map(|r| r.as_ref().unwrap().replace("\\", "/"))
+            .map(|r| r.as_ref().unwrap().replace('\\', "/"))
             .collect();
         files.sort();
         assert_eq!(files.len(), 4);
