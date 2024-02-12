@@ -45,10 +45,16 @@ pub fn run(config: Config) -> GrepResult<()> {
             Ok(filename) => match open(&filename) {
                 Err(e) => eprintln!("{}: {}", filename, e),
                 Ok(file) => {
-                    find_lines(file, &pattern, config.invert_match)
-                        .into_iter()
-                        .flatten()
-                        .for_each(|line| println!("{}", line));
+                    if config.count {
+                        find_lines(file, &pattern, config.invert_match)
+                            .into_iter()
+                            .for_each(|line| println!("{}", line.iter().count()));
+                    } else {
+                        find_lines(file, &pattern, config.invert_match)
+                            .into_iter()
+                            .flatten()
+                            .for_each(|line| println!("{}", line));
+                    }
                 }
             },
         }
