@@ -1,5 +1,5 @@
 use clap::Parser;
-use regex::{Error as RegexError, Regex};
+use regex::{Error as RegexError, Regex, RegexBuilder};
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -7,13 +7,14 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 type GrepResult<T> = Result<T, Box<dyn Error>>;
+type InsensitiveRegex = Regex;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about)]
 pub struct Config {
     ///Search pattern
     #[arg(name = "PATTERN", required = true, value_parser = parse_regex)]
-    pattern: Regex,
+    pattern: (Regex, InsensitiveRegex),
     ///Input file(s)
     #[arg(name = "FILES", default_value = "-")]
     files: Vec<String>,
@@ -32,14 +33,22 @@ pub struct Config {
 }
 pub fn run(config: Config) -> GrepResult<()> {
     let entries = find_files(&config.files, config.recursive);
+    let pattern = if config.insensitive {
+        // maybe use a struct
+        config.pattern.1
+    } else {
+        config.pattern.0
+    };
     for entry in entries {
         match entry {
             Err(e) => eprintln!("{}", e),
             Ok(filename) => match open(&filename) {
                 Err(e) => eprintln!("{}: {}", filename, e),
                 Ok(file) => {
-                    let matches = find_lines(file, &config.pattern, config.invert_match);
-                    println!("Found {:?}", matches);
+                    find_lines(file, &pattern, config.invert_match)
+                        .into_iter()
+                        .flatten()
+                        .for_each(|line| println!("{}", line));
                 }
             },
         }
@@ -49,8 +58,12 @@ pub fn run(config: Config) -> GrepResult<()> {
 pub fn get_args() -> GrepResult<Config> {
     Ok(Config::parse())
 }
-fn parse_regex(pattern: &str) -> Result<Regex, RegexError> {
-    Regex::new(pattern)
+fn parse_regex(pattern: &str) -> Result<(Regex, InsensitiveRegex), RegexError> {
+    // I can't find an easy way to pass the insensitive param to this function
+    Ok((
+        Regex::new(pattern)?,
+        RegexBuilder::new(pattern).case_insensitive(true).build()?,
+    ))
 }
 fn find_lines<T: BufRead>(file: T, pattern: &Regex, invert_match: bool) -> GrepResult<Vec<String>> {
     let result = file
