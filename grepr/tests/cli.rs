@@ -53,7 +53,7 @@ fn dies_bad_pattern() -> TestResult {
 #[test]
 fn warns_bad_file() -> TestResult {
     let bad = gen_bad_file();
-    let expected = format!("{}: .* [(]os error 2[)]", bad);
+    let expected = format!("{}: Path does not exist", bad);
     Command::cargo_bin(PRG)?
         .args(["foo", &bad])
         .assert()

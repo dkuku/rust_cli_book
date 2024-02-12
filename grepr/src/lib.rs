@@ -39,22 +39,28 @@ pub fn run(config: Config) -> GrepResult<()> {
     } else {
         config.pattern.0
     };
+    let multiple = entries.len() > 1;
     for entry in entries {
         match entry {
             Err(e) => eprintln!("{}", e),
             Ok(filename) => match open(&filename) {
                 Err(e) => eprintln!("{}: {}", filename, e),
                 Ok(file) => {
+                    let prefix = if multiple {
+                        format!("{filename}:")
+                    } else {
+                        "".to_string()
+                    };
                     if config.count {
                         find_lines(file, &pattern, config.invert_match)
                             .into_iter()
-                            .for_each(|line| println!("{}", line.iter().count()));
+                            .for_each(|line| println!("{}{}", prefix, line.iter().count()));
                     } else {
                         find_lines(file, &pattern, config.invert_match)
                             .into_iter()
                             .flatten()
-                            .for_each(|line| println!("{}", line));
-                    }
+                            .for_each(|line| println!("{}{}", prefix, line));
+                    };
                 }
             },
         }
@@ -87,9 +93,13 @@ fn find_lines<T: BufRead>(file: T, pattern: &Regex, invert_match: bool) -> GrepR
 fn find_files(paths: &[String], recursive: bool) -> Vec<GrepResult<String>> {
     let mut result = Vec::new();
     paths.iter().for_each(|path| {
+        if path == "-" {
+            result.push(Ok("-".into()));
+            return;
+        };
         let path_struct = Path::new(path);
         if !path_struct.exists() {
-            result.push(Err(format!("{path} Path does not exist").into()));
+            result.push(Err(format!("{path}: Path does not exist").into()));
             return;
         };
         if recursive {
