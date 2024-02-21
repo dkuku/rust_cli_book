@@ -1,5 +1,5 @@
 [workspace]
-members = ["catr", "cutr", "echor", "findr", "grepr", "headr", "uniqr", "wcr"]
+members = ["catr", "commr", "cutr", "echor", "findr", "grepr", "headr", "uniqr", "wcr"]
 resolver = "2"
 
 [workspace.dependencies]

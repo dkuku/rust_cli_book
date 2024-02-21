@@ -1,0 +1,13 @@
+[package]
+name = "commr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+rand = { workspace = true }
