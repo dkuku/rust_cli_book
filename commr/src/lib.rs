@@ -45,11 +45,11 @@ pub fn run(config: Config) -> CommResult<()> {
     }
     let mut lines1 = open(file1)?
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
         .map(|s| case(s, &config.insensitive));
     let mut lines2 = open(file2)?
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
         .map(|s| case(s, &config.insensitive));
     let mut line1 = lines1.next();
     let mut line2 = lines2.next();
@@ -84,7 +84,7 @@ pub fn run(config: Config) -> CommResult<()> {
     Ok(())
 }
 
-fn print(val: &str, col: Column, config: &Config) -> () {
+fn print(val: &str, col: Column, config: &Config) {
     match (config.show_col1, config.show_col2, config.show_col3, col) {
         (true, _, _, File1) => format_line(val, 0, &config.delimiter),
         (false, true, _, File2) => format_line(val, 0, &config.delimiter),
