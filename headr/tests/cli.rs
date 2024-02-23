@@ -39,7 +39,7 @@ fn gen_bad_file() -> String {
 #[test]
 fn dies_bad_bytes() -> TestResult {
     let bad = random_string();
-    let expected = format!("illegal byte count -- {}", &bad);
+    let expected = format!("invalid value '{}'", &bad);
     Command::cargo_bin(PRG)?
         .args(["-c", &bad, EMPTY])
         .assert()
@@ -53,7 +53,7 @@ fn dies_bad_bytes() -> TestResult {
 #[test]
 fn dies_bad_lines() -> TestResult {
     let bad = random_string();
-    let expected = format!("illegal line count -- {}", &bad);
+    let expected = format!("invalid value '{}'", &bad);
     Command::cargo_bin(PRG)?
         .args(["-n", &bad, EMPTY])
         .assert()

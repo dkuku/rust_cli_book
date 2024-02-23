@@ -6,31 +6,25 @@ use std::io::{self, BufRead, BufReader, Read};
 type HeadResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Parser, Debug)]
-#[command(version = "0.1.0", author = "dkuku", about = "Rust cat")]
+#[command(version, author, about)]
 pub struct Config {
-    /// Files to cat
+    /// Input files
     #[arg(name = "FILES", default_value = "-")]
     files: Vec<String>,
     /// Number of lines to print
-    #[arg(short = 'n', long, default_value_t = 10, value_parser=parse_line_count)]
+    #[arg(short = 'n', long, default_value_t = 10, value_parser=parse_num)]
     lines: usize,
     /// Number of bytes to print
-    #[arg(short = 'c', long, conflicts_with = "lines", value_parser=parse_byte_count)]
+    #[arg(short = 'c', long, conflicts_with = "lines", value_parser=parse_num)]
     bytes: Option<usize>,
 }
-fn parse_line_count(val: &str) -> Result<usize, String> {
+fn parse_num(val: &str) -> Result<usize, String> {
     match val.parse() {
         Ok(n) if n > 0 => Ok(n),
-        _ => Err(format!("illegal line count -- {}", val)),
+        _ => Err(format!("{}", val)),
     }
 }
 
-fn parse_byte_count(val: &str) -> Result<usize, String> {
-    match val.parse() {
-        Ok(n) if n > 0 => Ok(n),
-        _ => Err(format!("illegal byte count -- {}", val)),
-    }
-}
 pub fn run(config: Config) -> HeadResult<()> {
     let files_count = config.files.len();
     let multiple_files = files_count > 1;
