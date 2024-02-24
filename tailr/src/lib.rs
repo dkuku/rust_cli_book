@@ -1,6 +1,7 @@
 use crate::TakeValue::*;
 use clap::{arg, command, Parser};
 use std::error::Error;
+use std::fmt::{Formatter, Result as FmtResult};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -11,11 +12,11 @@ enum TakeValue {
     PlusZero,
     TakeNum(i64),
 }
-impl ToString for TakeValue {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for TakeValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            TakeValue::PlusZero => "+0".to_string(),
-            TakeValue::TakeNum(n) => n.to_string(),
+            TakeValue::PlusZero => write!(f, "+0"),
+            TakeValue::TakeNum(n) => write!(f, "{}", n),
         }
     }
 }
