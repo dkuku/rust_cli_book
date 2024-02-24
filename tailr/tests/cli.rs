@@ -38,7 +38,7 @@ fn dies_no_args() -> TestResult {
     Command::cargo_bin(PRG)?
         .assert()
         .failure()
-        .stderr(predicate::str::contains("USAGE"));
+        .stderr(predicate::str::contains("Usage"));
 
     Ok(())
 }
@@ -47,7 +47,7 @@ fn dies_no_args() -> TestResult {
 #[test]
 fn dies_bad_bytes() -> TestResult {
     let bad = random_string();
-    let expected = format!("illegal byte count -- {}", &bad);
+    let expected = format!("invalid value '{}' for '--bytes <BYTES>'", &bad);
     Command::cargo_bin(PRG)?
         .args(&["-c", &bad, EMPTY])
         .assert()
@@ -61,7 +61,7 @@ fn dies_bad_bytes() -> TestResult {
 #[test]
 fn dies_bad_lines() -> TestResult {
     let bad = random_string();
-    let expected = format!("illegal line count -- {}", &bad);
+    let expected = format!("invalid value '{}' for '--lines <LINES>'", &bad);
     Command::cargo_bin(PRG)?
         .args(&["-n", &bad, EMPTY])
         .assert()
@@ -74,11 +74,10 @@ fn dies_bad_lines() -> TestResult {
 // --------------------------------------------------
 #[test]
 fn dies_bytes_and_lines() -> TestResult {
-    let msg = "The argument '--lines <LINES>' cannot be \
-               used with '--bytes <BYTES>'";
+    let msg = "the argument '--bytes <BYTES>' cannot be used with '--lines <LINES>'";
 
     Command::cargo_bin(PRG)?
-        .args(&["-n", "1", "-c", "2"])
+        .args(&["-c", "1", "-n", "2"])
         .assert()
         .failure()
         .stderr(predicate::str::contains(msg));
