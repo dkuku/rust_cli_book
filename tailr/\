@@ -1,9 +1,10 @@
 use crate::TakeValue::*;
 use clap::{arg, command, Parser};
+use std::cmp;
 use std::error::Error;
 use std::fmt::{Formatter, Result as FmtResult};
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+use std::io::{BufRead, BufReader};
 
 type TailResult<T> = Result<T, Box<dyn Error>>;
 
@@ -48,24 +49,15 @@ fn parse_num(val: &str) -> Result<TakeValue, String> {
 }
 
 pub fn run(config: Config) -> TailResult<()> {
-    let num_files = config.files.len();
-    for (file_num, filename) in config.files.iter().enumerate() {
-        match File::open(&filename) {
+    for filename in config.files {
+        match open(&filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
             Ok(file) => {
-                if !config.quiet && num_files > 1 {
-                    println!(
-                        "{}==> {} <==",
-                        if file_num > 0 { "\n" } else { "" },
-                        filename
-                    );
-                }
                 let (total_lines, total_bytes) = count_lines_bytes(&filename)?;
-                let file = BufReader::new(file);
-                let _ = if let Some(bytes) = &config.bytes {
-                    print_bytes(file, bytes, total_bytes)
-                } else {
-                    print_lines(file, &config.lines, total_lines)
+                match &config.bytes {
+                    None => print_lines(file, &config.lines, total_lines),
+                    Some(bytes) => print_lines(file, bytes, total_bytes),
+                    Some(_) => todo!(),
                 };
             }
         }
@@ -78,37 +70,10 @@ fn count_lines_bytes(filename: &str) -> TailResult<(i64, i64)> {
     let lines = BufReader::new(file).lines().count();
     Ok((lines as i64, *bytes as i64))
 }
-fn print_bytes<T>(mut file: T, num_bytes: &TakeValue, total_bytes: i64) -> TailResult<()>
-where
-    T: Read + Seek,
-{
-    if let Some(start_index) = get_start_index(num_bytes, total_bytes) {
-        file.seek(SeekFrom::Start(start_index))?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
-        if !buffer.is_empty() {
-            print!("{}", String::from_utf8_lossy(&buffer));
-        }
-    }
-    Ok(())
-}
 fn print_lines(mut file: impl BufRead, num_lines: &TakeValue, total_lines: i64) -> TailResult<()> {
-    if let Some(start) = get_start_index(num_lines, total_lines) {
-        let mut line_num = 0;
-        let mut buf = Vec::new();
-        loop {
-            let bytes_read = file.read_until(b'\n', &mut buf)?;
-            if bytes_read == 0 {
-                break;
-            }
-            if line_num >= start {
-                print!("{}", String::from_utf8_lossy(&buf));
-            }
-            line_num += 1;
-            buf.clear();
-        }
-    }
-    Ok(())
+    let start_index = get_start_index(num_lines, total_lines);
+    println!("{}", start_index);
+    unimplemented!();
 }
 fn get_start_index(take_val: &TakeValue, total: i64) -> Option<u64> {
     match (take_val.clone(), total) {
@@ -120,6 +85,9 @@ fn get_start_index(take_val: &TakeValue, total: i64) -> Option<u64> {
         (TakeNum(take), total) if take + total < 0 => Some(0),
         (TakeNum(take), total) => Some((take + total) as u64),
     }
+}
+fn open(filename: &str) -> TailResult<Box<dyn BufRead>> {
+    Ok(Box::new(BufReader::new(File::open(filename)?)))
 }
 pub fn get_args() -> TailResult<Config> {
     Ok(Config::parse())
