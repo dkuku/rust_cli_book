@@ -17,7 +17,7 @@ pub struct Config {
     #[arg(name = "FILES", required = true)]
     sources: Vec<String>,
     /// Pattern
-    #[arg(short = 'm')]
+    #[arg(short = 'm', long)]
     pattern: Option<String>,
     /// Random seed
     #[arg(short, long, value_parser=parse_u64)]
@@ -46,17 +46,20 @@ pub fn run(config: Config) -> FortuneResult<()> {
             filtered_fortunes.for_each(|fortune| {
                 if previous_file != fortune.source {
                     previous_file = &fortune.source;
-                    println!("({})", previous_file);
-                    println!("%");
+                    eprintln!("({})", previous_file);
+                    eprintln!("%");
                 };
                 println!("{}", fortune.text);
                 println!("%")
             })
-        } else {
-            println!("No fortunes found");
         }
-    } else if let Some(fortune) = pick_fortune(&fortunes, config.seed) {
-        println!("{}", fortune);
+    } else {
+        println!(
+            "{}",
+            pick_fortune(&fortunes, config.seed)
+                .or_else(|| Some("No fortunes found".to_string()))
+                .unwrap()
+        )
     }
     Ok(())
 }
