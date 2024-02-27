@@ -1,11 +1,16 @@
 use clap::{arg, command, Parser};
+use rand::prelude::SliceRandom;
+use rand::SeedableRng;
+use regex::{Regex, RegexBuilder};
+use std::error::Error;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-//use regex::{Regex, RegexBuilder};
-use std::error::Error;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+
 type FortuneResult<T> = Result<T, Box<dyn Error>>;
+
 #[derive(Parser, Debug)]
 #[command(version, author, about)]
 pub struct Config {
@@ -22,6 +27,7 @@ pub struct Config {
     #[arg(short, long, default_value_t = false)]
     insensitive: bool,
 }
+
 #[derive(Debug)]
 struct Fortune {
     source: String,
@@ -30,10 +36,29 @@ struct Fortune {
 pub fn run(config: Config) -> FortuneResult<()> {
     let files = find_files(&config.sources)?;
     let fortunes = read_fortunes(&files)?;
-    println!("{:#?}", fortunes.last());
+    if let Some(pattern) = &config.pattern {
+        let re = parse_pattern(pattern, config.insensitive)?;
+        let mut filtered_fortunes = fortunes
+            .iter()
+            .filter(|fortune| re.is_match(&fortune.source) || re.is_match(&fortune.text))
+            .peekable();
+        if filtered_fortunes.peek().is_some() {
+            filtered_fortunes.for_each(|fortune| println!("{}", fortune.text));
+        } else {
+            println!("No fortunes found");
+        }
+    } else if let Some(fortune) = pick_fortune(&fortunes, config.seed) {
+        println!("{}", fortune);
+    }
     Ok(())
 }
 
+fn parse_pattern(pattern: &str, insensitive: bool) -> FortuneResult<Regex> {
+    RegexBuilder::new(pattern)
+        .case_insensitive(insensitive)
+        .build()
+        .map_err(|_| format!("invalid pattern: {}", pattern).into())
+}
 pub fn get_args() -> FortuneResult<Config> {
     Ok(Config::parse())
 }
@@ -42,36 +67,35 @@ fn parse_u64(val: &str) -> Result<u64, String> {
         .map_err(|_| format!("'{}' not a valid integer", val))
 }
 fn find_files(paths: &[String]) -> FortuneResult<Vec<PathBuf>> {
-    let mut result = Vec::new();
-    for path in paths.iter() {
+    let dat = OsStr::new("dat");
+    let mut files = Vec::new();
+    for path in paths {
         let path_struct = Path::new(path);
         if !path_struct.exists() {
             return Err(format!("{path}: Path does not exist").into());
         };
         if path_struct.is_dir() {
-            WalkDir::new(path).into_iter().for_each(|p| {
-                if let Ok(p) = p {
-                    let path = Path::new(p.path());
-                    if path.is_file() {
-                        result.push(path.into())
-                    }
-                }
-            });
+            let directory_files = WalkDir::new(path)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|p| p.file_type().is_file() && p.path().extension() != Some(dat))
+                .map(|p| p.path().into());
+            files.extend(directory_files);
         } else if path_struct.is_file() {
-            result.push(path_struct.into())
+            files.push(path_struct.into())
         } else {
             return Err(format!("{path} is a directory").into());
         }
     }
-    result.sort();
-    result.dedup();
-    Ok(result)
+    files.sort();
+    files.dedup();
+    Ok(files)
 }
 fn read_fortunes(paths: &[PathBuf]) -> FortuneResult<Vec<Fortune>> {
     let mut fortunes = Vec::new();
     for path in paths.iter() {
         let content = BufReader::new(File::open(path)?);
-        let _ = content.split(b'%').flatten().for_each(|fortune| {
+        content.split(b'%').flatten().for_each(|fortune| {
             let fortune = String::from_utf8(fortune).unwrap();
             let fortune = fortune.trim();
             if !fortune.is_empty() {
@@ -84,23 +108,17 @@ fn read_fortunes(paths: &[PathBuf]) -> FortuneResult<Vec<Fortune>> {
     }
     Ok(fortunes)
 }
-//fn parse_pattern(val: &str) -> Result<Option<(Regex, InsensitiveRegex)>, String> {
-//    println!("{:?}", val);
-//    let regex_sensitive = RegexBuilder::new(val)
-//        .case_insensitive(false)
-//        .build()
-//        .map_err(|_| format!("Invalid --pattern '{}'", val))?;
-//    let regex_insensitive = RegexBuilder::new(val)
-//        .case_insensitive(true)
-//        .build()
-//        .map_err(|_| format!("Invalid --pattern '{}'", val))?;
-//
-//    Ok(Some((regex_sensitive, regex_insensitive)))
-//}
+fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
+    let fortune = match seed {
+        None => fortunes.choose(&mut rand::thread_rng()),
+        Some(number) => fortunes.choose(&mut rand::rngs::StdRng::seed_from_u64(number)),
+    };
+    fortune.map(|f| f.text.clone())
+}
 
 #[cfg(test)]
 mod tests {
-    use super::{find_files, parse_u64, read_fortunes, Fortune};
+    use super::{find_files, parse_u64, pick_fortune, read_fortunes, Fortune};
     use std::path::PathBuf;
     #[test]
     fn test_parse_u64() {
@@ -193,5 +211,30 @@ mod tests {
         ]);
         assert!(res.is_ok());
         assert_eq!(res.unwrap().len(), 11);
+    }
+    #[test]
+    fn test_pick_fortune() {
+        // Create a slice of fortunes
+        let fortunes = &[
+            Fortune {
+                source: "fortunes".to_string(),
+                text: "You cannot achieve the impossible without \
+                      attempting the absurd."
+                    .to_string(),
+            },
+            Fortune {
+                source: "fortunes".to_string(),
+                text: "Assumption is the mother of all screw-ups.".to_string(),
+            },
+            Fortune {
+                source: "fortunes".to_string(),
+                text: "Neckties strangle clear thinking.".to_string(),
+            },
+        ];
+        // Pick a fortune with a seed
+        assert_eq!(
+            pick_fortune(fortunes, Some(1)).unwrap(),
+            "Neckties strangle clear thinking.".to_string()
+        );
     }
 }
