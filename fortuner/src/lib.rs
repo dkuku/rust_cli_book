@@ -1,6 +1,5 @@
 use clap::{arg, command, Parser};
-use rand::prelude::SliceRandom;
-use rand::SeedableRng;
+use rand::{prelude::SliceRandom, rngs::StdRng, thread_rng, SeedableRng};
 use regex::{Regex, RegexBuilder};
 use std::error::Error;
 use std::ffi::OsStr;
@@ -34,16 +33,25 @@ struct Fortune {
     text: String,
 }
 pub fn run(config: Config) -> FortuneResult<()> {
+    let mut previous_file = "";
     let files = find_files(&config.sources)?;
     let fortunes = read_fortunes(&files)?;
     if let Some(pattern) = &config.pattern {
         let re = parse_pattern(pattern, config.insensitive)?;
         let mut filtered_fortunes = fortunes
             .iter()
-            .filter(|fortune| re.is_match(&fortune.source) || re.is_match(&fortune.text))
+            .filter(|fortune| re.is_match(&fortune.text))
             .peekable();
         if filtered_fortunes.peek().is_some() {
-            filtered_fortunes.for_each(|fortune| println!("{}", fortune.text));
+            filtered_fortunes.for_each(|fortune| {
+                if previous_file != fortune.source {
+                    previous_file = &fortune.source;
+                    println!("({})", previous_file);
+                    println!("%");
+                };
+                println!("{}", fortune.text);
+                println!("%")
+            })
         } else {
             println!("No fortunes found");
         }
@@ -110,8 +118,8 @@ fn read_fortunes(paths: &[PathBuf]) -> FortuneResult<Vec<Fortune>> {
 }
 fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
     let fortune = match seed {
-        None => fortunes.choose(&mut rand::thread_rng()),
-        Some(number) => fortunes.choose(&mut rand::rngs::StdRng::seed_from_u64(number)),
+        None => fortunes.choose(&mut thread_rng()),
+        Some(number) => fortunes.choose(&mut StdRng::seed_from_u64(number)),
     };
     fortune.map(|f| f.text.clone())
 }
