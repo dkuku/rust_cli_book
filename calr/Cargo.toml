@@ -1,0 +1,15 @@
+[package]
+name = "calr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { workspace = true }
+chrono = { workspace = true }
+itertools = { workspace = true }
+ansi_term = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+pretty_assertions = { workspace = true }
